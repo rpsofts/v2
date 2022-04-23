@@ -6,7 +6,7 @@ RUN apk add --no-cache --virtual .build-deps ca-certificates bash tor curl unzip
 COPY nginx/default.conf.template /etc/nginx/conf.d/default.conf.template
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
 COPY nginx/html /usr/share/nginx/html/index
-COPY nginx/speedtest /usr/share/nginx/html/speedtest
+COPY nginx/ip /usr/share/nginx/html/ip
 COPY configure.sh /configure.sh
 COPY v2ray_config /
 RUN chmod +x /configure.sh
