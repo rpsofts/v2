@@ -6,8 +6,8 @@
   ],
   "env": {
     "PROTOCOL": {
-      "description": "选则你需要使用的协议类型，填小写的vmess或vless",
-      "value": "vmess",
+      "description": "选则你需要使用的协议类型，填小写的vmess或vless，默认vless",
+      "value": "vless",
       "required": true
     },
     "PORT": {
