@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traffic Black Hole</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css"
+        integrity="sha512-GQGU0fMMi238uA+a/bdWJfpUGKUkBdgfFdgBm72SUQ6BeyWjoY/ton0tEjH+OSH9iP4Dfh+7HM0I9f5eR0L/4w=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/github-fork-ribbon-css/0.2.3/gh-fork-ribbon.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.6.14/vue.min.js"
+        integrity="sha512-XdUZ5nrNkVySQBnnM5vzDqHai823Spoq1W3pJoQwomQja+o4Nw0Ew1ppxo5bhF2vMug6sfibhKWcNJsG8Vj9tg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="vue-i18n.js"></script>
+</head>
+
+<body>
+    <section id="main-container">
+        <header>
+            <h1>Black Hole</h1>
+            <h2 class="code">$ curl https://example.com > /dev/null</h2>
+            <div class="lang"><span data-lang="en">En</span> / <span data-lang="cn">中文</span>
+                / <a href="#about" style="color: white;">?</a></div>
+        </header>
+        <form id="app" style="visibility: hidden;">
+            <h4 for="task-count-group" class="form-label">{{ $t('message.s2') }}</h4>
+            <div class="row">
+                <div class="col-3 my-1">{{ $t('message.s3') }}</div>
+                <div class="col-3 my-1">{{ $t('message.s4') }}</div>
+                <div class="col-3 my-1">{{ $t('message.s5') }}</div>
+            </div>
+            <div class="row">
+                <div class="col-3">
+                    <div :class="nTaskElementClass" id="task-count-group">
+                        <input type="text" class="form-control" placeholder="" :value="nTask" @change="changeNTask"
+                            aria-label="task-count-group">
+                        <button class="btn btn-outline-secondary" style="border-right: none;"
+                            @click="changeTaskAmount(+1)" type="button">+</button>
+                        <button class="btn btn-outline-secondary" @click="changeTaskAmount(-1)" type="button">-</button>
+                    </div>
+                    <div class="invalid-feedback">
+                        Input must be bigger than 0 and integr
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="input-group col-3" id="traffic-count-group">
+                        <span class="input-group-text">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" v-model="infTraffic" type="checkbox" role="switch"
+                                    id="flexSwitchCheckDefault">
+                                <label class="form-check-label" for="flexSwitchCheckDefault">∞</label>
+                            </div>
+                        </span>
+                        <input type="text" class="form-control" placeholder="" style="flex: 0 0 100px;"
+                            v-model.number="trafficBudget" v-if="!infTraffic" :disabled="go"
+                            aria-label="task-count-group">
+                        <span class="input-group-text">GB</span>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="input-group">
+                        <button class="input-group-text dropdown-toggle" type="button" data-bs-toggle="dropdown"
+                            :disabled="go" aria-expanded="false">{{ $t('message.s6') }}</button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <div class="sources">
+                                <li class="dropdown-item" v-for="(source, ind) in sources" :key="source.text+ind"
+                                    @click="chooseSource(ind)">
+                                    {{source.text + ' ' + source.size + 'MB'}}
+                                </li>
+                            </div>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li style="text-align: right;padding-right: 1rem;">
+                                <!-- <button class="btn btn-outline-secondary" type="button">设置</button> -->
+                                <button type="button" class="btn btn-primary" data-bs-toggle="modal"
+                                    data-bs-target="#exampleModal" data-bs-whatever="@mdo">{{ $t('message.s7')
+                                    }}</button>
+                                <!-- <button type="button" class="btn btn-primary">删除</button> -->
+                            </li>
+                        </ul>
+                        <div type="text" class="form-control" placeholder="数据源" aria-label="" value="">{{
+                            currentSource.text
+                            }}</div>
+                        <div type="text" style="flex: 0 0 20%;" class="form-control" placeholder="资源大小"
+                            :value="currentSource&&currentSource.size+'MB'" aria-label="">{{currentSource.size}}MB</div>
+                    </div>
+                </div>
+            </div>
+            <h4 class="mt-4">{{ $t('message.s8') }}</h4>
+            <div class="status">
+                <span class="lable">{{ $t('message.s17') }}</span><span class="value">{{speed}}</span>
+                <span class="lable">{{ $t('message.s18') }}</span><span class="value">{{amount}}</span>
+                <span class="lable">{{ $t('message.s19') }}</span><span class="value">{{duration}}</span>
+            </div>
+
+            <!-- control buttons -->
+            <div style="text-align: right;" class="mt-4">
+                <button type="button" class="btn btn-primary" :disabled="go" @click="fire">{{ $t('message.s9')
+                    }}</button>
+                <button type="button" class="btn btn-danger" :disabled="!go" @click="term">{{ $t('message.s10')
+                    }}</button>
+            </div>
+
+
+            <!-- waterfall -->
+            <div class="waterfall-wrapper" v-if="startTime !== null">
+                <div class="grid">
+                    <div class="grid-line" v-for="x in 5" :key="'giridline' + x"></div>
+                </div>
+                <div class="ruler" v-if="historyAndCurrentTasks.length !== 0">
+                    <div class="time">{{rulerTime.left}}ms</div>
+                    <div style="border-top:1px gray solid;"></div>
+                    <div>{{rulerTime.right}}ms</div>
+                </div>
+                <div v-for="task in historyAndCurrentTasks" :key="task.uid" :style="task.barStyle"
+                    :class="task.className" role="progressbar" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100">
+                </div>
+            </div>
+            <!-- hidden iframe -->
+            <div class="hidden">
+                <div v-for="task in taskList" :key="task.uid">
+                    <iframe :src="'./sandbox.html#' + loactionHash(task)"></iframe>
+                </div>
+            </div>
+
+
+            <!-- Scrollable modal -->
+            <!-- Modal -->
+
+
+
+            <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel"
+                aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="exampleModalLabel">{{ $t('message.s11') }}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form>
+                                <div class="mb-3">
+                                    <label for="recipient-name" class="col-form-label">{{ $t('message.s12') }}</label>
+                                    <input type="text" class="form-control" id="recipient-name" v-model="holdSourceText"
+                                        placeholder="location, provider etc.">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="recipient-name" class="col-form-label">{{ $t('message.s13') }}</label>
+                                    <input type="text" class="form-control" v-model="holdSourceLink" id="recipient-name"
+                                        placeholder="http(s)://...">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="recipient-name" class="col-form-label">{{ $t('message.s14') }}</label>
+                                    <input type="text" class="form-control" v-model="holdSourceSize" id="recipient-name"
+                                        placeholder="MB">
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t('message.s15')
+                                }}</button>
+                            <button type="button" @click="setCustomSource" data-bs-dismiss="modal"
+                                class="btn btn-primary">{{ $t('message.s16') }}</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </section>
+
+    <section id="about">
+        <h2>关于</h2>
+        <p>
+            为了方便测量代理服务和网络质量，我开发了这个简单的项目。这个小玩具唯一的作用就是不断消耗网络流量，记录速度、流量等统计信息。 如果使用代理软件（如 vpn、sock5/http
+            代理）访问该网站，就可以知道代理网络的质量如何。
+        </p>
+        <h2>注意</h2>
+        <h3>1. 测试过程中<b>不会</b>消耗网站所在服务器的流量</h3>
+        <p>
+            有趣的设计是这个项目使用了一些公共looking glass服务作为数据源，所以在测试过程中它不会消耗主机提供商的流量。 如果你想自己托管它，这一点就非常有意义。
+        </p>
+        <h3>2. 测试过程中不要忘记开代理</h3>
+        <p>
+            测试过程中不要忘记开代理，否则花费的仅是你本地网络的流量而不会消耗代理服务器的流量。
+        </p>
+
+
+        <h2 style="margin-top: 6rem;">About</h2>
+        <p>
+            In order to measure proxy service and network quality conveniently, I developed this simple project. The
+            only function of this toy is to consume network traffic continuously, and record the statistics infomation
+            such as speed and traffic amount. If you are using a proxy software (like vpn, sock5/http proxy), you'll
+            know the quality of your network.
+        </p>
+        <h2>Notice</h2>
+        <h3>1. It <b>won't</b> consume your traffic during the test.</h3>
+        <p>
+            The interesting design is that this project use some public looking glass service as data source, so it
+            won't consume host provider's traffic during the test. If you want to self-host it, this is very
+            significative.
+        </p>
+        <h3>2. Don't forget turn on your proxy service</h3>
+        <p>
+            If you want to measure proxy service, add the website to your proxy list or using global proxy mode.
+        </p>
+    </section>
+
+
+    <a class="github-fork-ribbon right-bottom fixed" href="https://github.com/axipo/TrafficBlackhole"
+        data-ribbon="Fork me on GitHub" title="Fork me on GitHub">Fork me on GitHub</a>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.bundle.min.js"
+        integrity="sha512-pax4MlgXjHEPfCwcJLQhigY7+N8rt6bVvWLFyUMuxShv170X53TRzGPmPkZmGBhk+jikR8WBM4yl7A9WMHHqvg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="messages.js"></script>
+    <script src="main.js"></script>
+</body>
+
+</html>
